@@ -1,19 +1,23 @@
 /**
  * App.tsx
  * ========
+ * Punto de entrada principal de la aplicación.
+ *
+ * Maneja el flujo de autenticación:
+ *   - Si NO hay token → muestra LoginForm
+ *   - Si hay token → muestra el layout principal con la gestión de estudiantes
+ *
  * Layout de dos paneles redimensionables:
  *   - Panel izquierdo: DataTable de estudiantes
  *   - Panel derecho: Formulario crear / editar (se muestra al seleccionar)
- *
- * BUENA PRÁCTICA: App.tsx es el único lugar donde se consume useEstudiantes.
- * Los componentes hijos solo reciben props (datos + callbacks).
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useEstudiantes } from "@/hooks/useEstudiantes";
 import { EstudianteTable } from "@/components/EstudianteTable";
 import { EstudianteForm } from "@/components/EstudianteForm";
 import { ApiErrorAlert } from "@/components/ApiErrorAlert";
+import { AuthPage } from "@/components/AuthPage";
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -21,8 +25,50 @@ import {
 } from "@/components/ui/resizable";
 import type { Estudiante, EstudiantePayload } from "@/types/estudiante";
 import { Button } from "./components/ui/button";
+import { Toaster } from "@/components/ui/sonner";
 
 function App() {
+  // --- Estado de autenticación ---
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    const token = localStorage.getItem("access_token");
+    if (token) {
+      setIsAuthenticated(true);
+    }
+  }, []);
+
+  function handleLoginSuccess() {
+    setIsAuthenticated(true);
+  }
+
+  function handleLogout() {
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
+    setIsAuthenticated(false);
+  }
+
+  // --- Si no está autenticado, mostrar Login ---
+  if (!isAuthenticated) {
+    return (
+      <>
+        <AuthPage onLoginSuccess={handleLoginSuccess} />
+        <Toaster />
+      </>
+    );
+  }
+
+  // --- Si está autenticado, mostrar la app ---
+  return (
+    <>
+      <MainApp onLogout={handleLogout} />
+      <Toaster />
+    </>
+  );
+}
+
+/** Componente interno que contiene toda la lógica de la app principal. */
+function MainApp({ onLogout }: { onLogout: () => void }) {
   const { estudiantes, loading, error, crear, actualizar, eliminar } =
     useEstudiantes();
 
@@ -72,6 +118,14 @@ function App() {
             Demostración de validación de datos — Django REST + React
           </p>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onLogout}
+          className="border-destructive/50 text-destructive hover:bg-destructive hover:text-white transition-colors"
+        >
+          Cerrar Sesión
+        </Button>
       </header>
 
       {/* Cuerpo: paneles redimensionables */}

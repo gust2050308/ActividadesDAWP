@@ -3,64 +3,35 @@
  * ==================
  * Capa de acceso a la API REST de Django.
  *
- * BUENA PRÁCTICA: todo el código de `fetch` vive aquí.
- * Los componentes y hooks NUNCA hacen fetch directamente.
+ * BUENA PRÁCTICA: todo el código de red vive aquí.
+ * Los componentes y hooks NUNCA hacen peticiones directamente.
  * Si cambia la URL base o el formato de la API, solo se edita este archivo.
+ *
+ * Usa la instancia de Axios con interceptores JWT (axiosInstance.ts)
+ * para agregar automáticamente el header Authorization.
  *
  * MANEJO DE ERRORES:
  *   - 400 → parsea el body JSON y lanza ApiError con errores por campo.
  *   - Otros errores → lanza ApiError con mensaje genérico.
  */
 
+import api from "./axiosInstance";
 import { createApiError, type Estudiante, type EstudiantePayload } from "@/types/estudiante";
+import type { AxiosError } from "axios";
 
+const ESTUDIANTES_URL = "/api/estudiante";
 
-// NOTA: En Vite las variables de .env deben tener prefijo VITE_ para ser accesibles.
-const BASE_URL: string = import.meta.env.VITE_API_URL ?? "";
-if (!BASE_URL) {
-    console.error(
-        "[api] VITE_API_URL no está definida en .env. " +
-        "Todas las peticiones fallarán."
-    );
+/** Extrae errores de campo de una respuesta Axios y lanza ApiError. */
+function handleAxiosError(error: unknown): never {
+    const axiosErr = error as AxiosError<Record<string, string[]>>;
+    const status = axiosErr.response?.status ?? 500;
+    const fieldErrors = axiosErr.response?.data ?? {};
+    console.error(`[api] ${status} →`, fieldErrors);
+    throw createApiError(fieldErrors, status);
 }
 
-/** Headers comunes para todas las peticiones. */
-const JSON_HEADERS = {
-    "Content-Type": "application/json",
-    Accept: "application/json",
-};
-
-/** Parsea la respuesta y lanza ApiError si el status es 4xx/5xx. */
-async function handleResponse<T>(res: Response): Promise<T> {
-    if (res.ok) {
-        // 204 No Content (DELETE exitoso) no tiene body
-        if (res.status === 204) return undefined as T;
-        return res.json() as Promise<T>;
-    }
-
-    // Error del servidor — intentamos parsear errores de campo DRF
-    let fieldErrors: Record<string, string[]> = {};
-    try {
-        fieldErrors = await res.json();
-    } catch {
-        // Si el body no es JSON válido, dejamos errores vacíos
-    }
-
-    // Incluimos status y texto HTTP para facilitar la depuración
-    const statusText = res.statusText || `HTTP ${res.status}`;
-    console.error(`[api] ${res.status} ${statusText} →`, res.url, fieldErrors);
-
-    throw createApiError(fieldErrors, res.status);
-}
-
-/** GET /api/estudiante/ — lista todos los estudiantes. */
-export async function getEstudiantes(): Promise<Estudiante[]> {
-    const res = await fetch(`${BASE_URL}/`, { headers: JSON_HEADERS });
-    return handleResponse<Estudiante[]>(res);
-}
-
-/** Helper genérico para empaquetar datos en FormData o JSON según corresponda. */
-function buildBodyAndHeaders(data: EstudiantePayload): { body: BodyInit; headers: HeadersInit } {
+/** Helper para empaquetar datos en FormData o JSON según corresponda. */
+function buildPayload(data: EstudiantePayload): FormData | EstudiantePayload {
     const debeUsarFormData = !!data.archivo_foto || !!data.archivo_boleta;
 
     if (debeUsarFormData) {
@@ -75,57 +46,55 @@ function buildBodyAndHeaders(data: EstudiantePayload): { body: BodyInit; headers
         if (data.archivo_foto) {
             formData.append("archivo_foto", data.archivo_foto);
         }
-
         if (data.archivo_boleta) {
             formData.append("archivo_boleta", data.archivo_boleta);
         }
-
-        return {
-            body: formData,
-            headers: { Accept: "application/json" }, // El navegador asume multipart/form-data
-        };
+        return formData;
     }
 
-    // Fallback JSON simple sin archivos
-    return {
-        body: JSON.stringify(data),
-        headers: JSON_HEADERS,
-    };
+    return data;
+}
+
+/** GET /api/estudiante/ — lista todos los estudiantes. */
+export async function getEstudiantes(): Promise<Estudiante[]> {
+    try {
+        const res = await api.get<Estudiante[]>(`${ESTUDIANTES_URL}/`);
+        return res.data;
+    } catch (error) {
+        handleAxiosError(error);
+    }
 }
 
 /** POST /api/estudiante/ — crea un nuevo estudiante. */
 export async function createEstudiante(data: EstudiantePayload): Promise<Estudiante> {
-    const { body, headers } = buildBodyAndHeaders(data);
-
-    const res = await fetch(`${BASE_URL}/`, {
-        method: "POST",
-        headers,
-        body,
-    });
-
-    return handleResponse<Estudiante>(res);
+    try {
+        const payload = buildPayload(data);
+        const res = await api.post<Estudiante>(`${ESTUDIANTES_URL}/`, payload);
+        return res.data;
+    } catch (error) {
+        handleAxiosError(error);
+    }
 }
 
 /** PUT /api/estudiante/{id}/ — actualiza un estudiante completo. */
 export async function updateEstudiante(
     id: number,
-    data: EstudiantePayload
+    data: EstudiantePayload,
 ): Promise<Estudiante> {
-    const { body, headers } = buildBodyAndHeaders(data);
-
-    const res = await fetch(`${BASE_URL}/${id}/`, {
-        method: "PUT",
-        headers,
-        body,
-    });
-    return handleResponse<Estudiante>(res);
+    try {
+        const payload = buildPayload(data);
+        const res = await api.put<Estudiante>(`${ESTUDIANTES_URL}/${id}/`, payload);
+        return res.data;
+    } catch (error) {
+        handleAxiosError(error);
+    }
 }
 
 /** DELETE /api/estudiante/{id}/ — elimina un estudiante. */
 export async function deleteEstudiante(id: number): Promise<void> {
-    const res = await fetch(`${BASE_URL}/${id}/`, {
-        method: "DELETE",
-        headers: JSON_HEADERS,
-    });
-    return handleResponse<void>(res);
+    try {
+        await api.delete(`${ESTUDIANTES_URL}/${id}/`);
+    } catch (error) {
+        handleAxiosError(error);
+    }
 }

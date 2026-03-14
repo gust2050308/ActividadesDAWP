@@ -18,6 +18,7 @@ Serializer del modelo Estudiante con validaciones en tres niveles:
 """
 
 from rest_framework import serializers
+from rest_framework.reverse import reverse
 
 from .models import Estudiante
 from .validators import (
@@ -32,23 +33,23 @@ from .validators import (
 
 
 class EstudianteSerializer(serializers.ModelSerializer):
-    # Este campo procesará el archivo binario subido
+    # --- Foto de perfil (binario en BD) ---
     archivo_foto = serializers.ImageField(
         write_only=True,
         required=False,
         validators=[validar_imagen_segura]
     )
-    # Este campo solo devolverá la URL pública guardada
-    foto_perfil = serializers.URLField(read_only=True)
+    # URL al endpoint que sirve la imagen desde BD
+    foto_perfil = serializers.SerializerMethodField()
 
-    # Campo para subir la boleta en PDF
+    # --- Boleta PDF (archivo en MEDIA) ---
     archivo_boleta = serializers.FileField(
         write_only=True,
         required=False,
         validators=[validar_pdf_seguro],
     )
-    # URL pública de la boleta almacenada en Supabase
-    boleta_pdf = serializers.URLField(read_only=True)
+    # URL pública del PDF almacenado en /media/boletas/
+    boleta_pdf = serializers.FileField(read_only=True)
 
     class Meta:
         model = Estudiante
@@ -65,6 +66,16 @@ class EstudianteSerializer(serializers.ModelSerializer):
             'boleta_pdf',
             'archivo_boleta',
         ]
+
+    def get_foto_perfil(self, obj):
+        """Devuelve la URL absoluta al endpoint que sirve la imagen desde BD."""
+        if not obj.foto_perfil:
+            return None
+        request = self.context.get('request')
+        url = reverse('estudiante-foto', kwargs={'pk': obj.pk})
+        if request:
+            return request.build_absolute_uri(url)
+        return url
 
     # ------------------------------------------------------------------ #
     # NIVEL 1: Validación individual por campo                            #

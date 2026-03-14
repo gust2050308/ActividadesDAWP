@@ -30,8 +30,11 @@ class Estudiante(models.Model):
     edad = models.IntegerField()
     carrera = models.CharField(max_length=100)
     promedio = models.FloatField()
-    foto_perfil = models.URLField(max_length=500, blank=True, null=True)
-    boleta_pdf = models.URLField(max_length=500, blank=True, null=True)
+    # Imagen guardada como binario en BD (BLOB en MySQL)
+    foto_perfil = models.BinaryField(blank=True, null=True)
+    foto_perfil_content_type = models.CharField(max_length=50, blank=True, null=True)
+    # PDF guardado en filesystem (carpeta media/boletas/)
+    boleta_pdf = models.FileField(upload_to='boletas/', blank=True, null=True)
 
     def clean(self):
         """

@@ -138,7 +138,7 @@ def validar_imagen_segura(file: UploadedFile) -> UploadedFile:
         raise ValidationError("Error al procesar la imagen asegurate de que tenga un formato correcto.")
     finally:
         # Siempre devolver el puntero del archivo al inicio para que pueda ser leído
-        # posteriormente por el proceso de subida a Supabase.
+        # posteriormente por el proceso de guardado.
         file.seek(0)
 
     return file
