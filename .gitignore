@@ -1,0 +1,51 @@
+# ──────────────────────────────
+# Variables de entorno (secretos)
+# ──────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ──────────────────────────────
+# Python / Django
+# ──────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+db.sqlite3
+*.sqlite3
+
+# Entornos virtuales
+venv/
+env/
+.venv/
+.env/
+
+# Archivos de migraciones compilados
+*.pyc
+
+# ──────────────────────────────
+# Django media / static generados
+# ──────────────────────────────
+/media/
+/staticfiles/
+
+# ──────────────────────────────
+# Node / Frontend (React + Vite)
+# ──────────────────────────────
+frontend/node_modules/
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+frontend/dist/
+frontend/.vite/
+
+# ──────────────────────────────
+# IDEs y editores
+# ──────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
